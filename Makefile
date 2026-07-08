@@ -36,6 +36,13 @@ lint: ## runs golangci-lint on all modules
 		( cd $$mod && golangci-lint run ) || exit 1; \
 	done
 
+.PHONY: update
+update: ## update dependencies in all modules
+	@for mod in $(MODULES); do \
+		echo "==> updating $$mod"; \
+		( cd $$mod && go get -u -t . ) || exit 1; \
+	done
+
 .PHONY: tidy
 tidy: ## runs go mod tidy on all modules
 	@for mod in $(MODULES); do \
