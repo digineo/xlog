@@ -26,11 +26,18 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Run linter
+      - name: Run linter (root module)
         uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           skip-cache: true
+
+      - name: Run linter (slogor module)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          skip-cache: true
+          working-directory: slogor
 
       - name: Run tests
         run: make test

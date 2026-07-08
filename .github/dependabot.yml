@@ -9,6 +9,13 @@ updates:
       time: "08:30"
       timezone: "Europe/Berlin"
 
+  - package-ecosystem: "gomod"
+    directory: "/slogor"
+    schedule:
+      interval: "daily"
+      time: "08:30"
+      timezone: "Europe/Berlin"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

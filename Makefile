@@ -1,5 +1,9 @@
 MAKEFLAGS += --no-print-directory
 
+# The repository hosts two Go modules: the root xlog module and the
+# optional xlog/slogor backend. Most targets iterate over both.
+MODULES = . slogor
+
 ## help (prints target names with trailing "## comment")
 
 .PHONY: help
@@ -9,22 +13,35 @@ help: ## print a short help message
 
 ## testing
 
+.PHONY: test
+test: ## runs tests for all modules
+	@for mod in $(MODULES); do \
+		echo "==> testing $$mod"; \
+		( cd $$mod && go test -race ./... ) || exit 1; \
+	done
+
 .PHONY: coverage.out
-coverage.out: ## runs tests and writes a coverage profile
+coverage.out: ## runs tests and writes a coverage profile (root module)
 	go test -race -covermode=atomic -coverprofile=$@ ./...
 
 coverage.html: coverage.out ## renders the coverage profile as HTML
 	go tool cover -html $< -o $@
 
-.PHONY: test
-test: ## runs tests
-	go test -race ./...
-
 ## development
 
 .PHONY: lint
-lint: ## runs golangci-lint on source files
-	golangci-lint run
+lint: ## runs golangci-lint on all modules
+	@for mod in $(MODULES); do \
+		echo "==> linting $$mod"; \
+		( cd $$mod && golangci-lint run ) || exit 1; \
+	done
+
+.PHONY: tidy
+tidy: ## runs go mod tidy on all modules
+	@for mod in $(MODULES); do \
+		echo "==> tidying $$mod"; \
+		( cd $$mod && go mod tidy ) || exit 1; \
+	done
 
 .PHONY: clean
 clean: ## cleanup build fragments

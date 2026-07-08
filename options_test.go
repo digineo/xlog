@@ -3,7 +3,6 @@ package xlog
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"log/slog"
 	"runtime"
 	"testing"
@@ -22,7 +21,7 @@ type OptionSuite struct {
 }
 
 func (o *OptionSuite) SetupTest() {
-	o.level = slog.LevelDebug
+	o.options = options{level: slog.LevelDebug}
 }
 
 func (o *OptionSuite) TestLeveled() {
@@ -92,10 +91,21 @@ func (o *OptionSuite) TestWithSource() {
 	o.Assert().True(o.source)
 }
 
-func (o *OptionSuite) TestColor() {
-	err := Color()(&o.options)
+func (o *OptionSuite) TestConflictingHandlers() {
+	err := AsText()(&o.options)
 	o.Require().NoError(err)
-	o.Assert().True(o.color)
+
+	err = AsJSON()(&o.options)
+	o.Assert().EqualError(err, "xlog: conflicting handler options: text and json")
+
+	// Re-applying the same kind is not a conflict (last one wins).
+	err = AsText()(&o.options)
+	o.Assert().NoError(err)
+}
+
+func (o *OptionSuite) TestUseHandler_nil() {
+	err := UseHandler(HandlerText, nil)(&o.options)
+	o.Assert().EqualError(err, "xlog: nil handler factory")
 }
 
 func (o *OptionSuite) testBuildHandler(expectedLog string, opts ...Option) {
@@ -127,12 +137,28 @@ func (o *OptionSuite) TestAsJSON() {
 }
 
 func (o *OptionSuite) TestAsText() {
-	o.testBuildHandler("INFO  test\n", AsText())
+	o.testBuildHandler("level=INFO msg=test\n", AsText())
+}
 
-	_, _, line, ok := runtime.Caller(0)
+func (o *OptionSuite) TestAsText_withSource() {
+	var buf bytes.Buffer
+	o.output = &buf
+
+	o.Require().NoError(WithSource()(&o.options))
+	o.Require().NoError(AsText()(&o.options))
+	h := o.buildHandler(&o.options)
+
+	pc, _, _, ok := runtime.Caller(0)
 	o.Require().True(ok)
-	msg := fmt.Sprintf("INFO  options_test.go:%d test\n", line+3)
-	o.testBuildHandler(msg, WithSource(), AsText())
+	err := h.Handle(context.Background(), slog.NewRecord(
+		time.Time{}, slog.LevelInfo, "test", pc,
+	))
+	o.Require().NoError(err)
+
+	out := buf.String()
+	o.Assert().Contains(out, "level=INFO")
+	o.Assert().Contains(out, "options_test.go:")
+	o.Assert().Contains(out, "msg=test")
 }
 
 func (o *OptionSuite) TestDiscard() {

@@ -2,14 +2,12 @@ package xlog
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/digineo/xlog/internal"
-	"github.com/mattn/go-isatty"
-	"gitlab.com/greyxor/slogor"
 )
 
 // An Option represents a functional configuration option. These are
@@ -18,12 +16,88 @@ type Option func(*options) error
 
 type options struct {
 	output io.Writer
-	color  bool
 	clock  internal.Clock
 	level  slog.Leveler
 	source bool
 
+	handlerKind  HandlerKind
 	buildHandler func(o *options) slog.Handler
+}
+
+// HandlerKind classifies the output format a handler produces. It is
+// used to detect conflicting handler options: requesting two different
+// kinds (e.g. both text and JSON output) makes New return an error,
+// while options of the same kind override each other (last one wins).
+type HandlerKind uint8
+
+const (
+	// HandlerText denotes a human-readable text handler.
+	HandlerText HandlerKind = iota + 1
+	// HandlerJSON denotes a machine-readable JSON handler.
+	HandlerJSON
+	// HandlerDiscard denotes a handler that mutes all output.
+	HandlerDiscard
+)
+
+// String implements [fmt.Stringer].
+func (k HandlerKind) String() string {
+	switch k {
+	case HandlerText:
+		return "text"
+	case HandlerJSON:
+		return "json"
+	case HandlerDiscard:
+		return "discard"
+	default:
+		return fmt.Sprintf("HandlerKind(%d)", uint8(k))
+	}
+}
+
+// HandlerConfig carries the resolved base configuration to a
+// [HandlerFactory]. It gives handler provider packages (such as
+// xlog/slogor) access to the settings shared by all handlers, without
+// exposing xlog's internal option state.
+type HandlerConfig struct {
+	// Output is the writer log records should be written to.
+	Output io.Writer
+	// Level is the minimum level to log. It is never nil.
+	Level slog.Leveler
+	// Source reports whether source positions should be included.
+	Source bool
+}
+
+// A HandlerFactory constructs a [slog.Handler] from the resolved
+// configuration.
+type HandlerFactory func(*HandlerConfig) slog.Handler
+
+func (o *options) setHandler(kind HandlerKind, fn func(*options) slog.Handler) error {
+	if o.handlerKind != 0 && o.handlerKind != kind {
+		return fmt.Errorf("xlog: conflicting handler options: %s and %s", o.handlerKind, kind)
+	}
+	o.handlerKind = kind
+	o.buildHandler = fn
+	return nil
+}
+
+// UseHandler installs a handler produced by factory. The kind classifies
+// the handler for conflict detection (see [HandlerKind]).
+//
+// It is the extension point used by handler provider packages such as
+// xlog/slogor, so that alternative backends can be plugged in without
+// the core module depending on them.
+func UseHandler(kind HandlerKind, factory HandlerFactory) Option {
+	return func(o *options) error {
+		if factory == nil {
+			return errors.New("xlog: nil handler factory")
+		}
+		return o.setHandler(kind, func(o *options) slog.Handler {
+			return factory(&HandlerConfig{
+				Output: o.output,
+				Level:  o.level,
+				Source: o.source,
+			})
+		})
+	}
 }
 
 // Leveled sets the log level.
@@ -77,48 +151,33 @@ func WithSource() Option {
 	}
 }
 
-// Color enables colorful log output. If the output writer set by
-// [WriteTo] isn't a TTY, or messages are output [AsJSON], enabling
-// colors won't have an effect.
-func Color() Option {
-	return func(o *options) error {
-		o.color = true
-		return nil
-	}
-}
-
 // AsJSON configures a JSONHandler, i.e. log messages will be printed
 // as JSON string.
 func AsJSON() Option {
 	return func(o *options) error {
-		o.buildHandler = func(o *options) slog.Handler {
+		return o.setHandler(HandlerJSON, func(o *options) slog.Handler {
 			return slog.NewJSONHandler(o.output, &slog.HandlerOptions{
 				AddSource: o.source,
 				Level:     o.level,
 			})
-		}
-		return nil
+		})
 	}
 }
 
-// AsText configures a TextHandler, i.e. the message output is a
-// simple list of key=value pairs with minimal quoting.
+// AsText configures a TextHandler, i.e. the message output is a simple
+// list of key=value pairs with minimal quoting. It uses the handler
+// from the standard library and therefore has no external dependencies.
+//
+// For colorized, human-friendly text output, use the xlog/slogor
+// sub-module, whose Colorized option is a drop-in replacement.
 func AsText() Option {
 	return func(o *options) error {
-		o.buildHandler = func(o *options) slog.Handler {
-			opts := []slogor.OptionFn{
-				slogor.SetLevel(o.level.Level()),
-				slogor.SetTimeFormat("[15:04:05.000]"),
-			}
-			if o.source {
-				opts = append(opts, slogor.ShowSource())
-			}
-			if f, isFile := o.output.(*os.File); !isFile || !isatty.IsTerminal(f.Fd()) {
-				opts = append(opts, slogor.DisableColor())
-			}
-			return slogor.NewHandler(o.output, opts...)
-		}
-		return nil
+		return o.setHandler(HandlerText, func(o *options) slog.Handler {
+			return slog.NewTextHandler(o.output, &slog.HandlerOptions{
+				AddSource: o.source,
+				Level:     o.level,
+			})
+		})
 	}
 }
 
@@ -126,10 +185,9 @@ func AsText() Option {
 // constructor.
 func Discard() Option {
 	return func(o *options) error {
-		o.buildHandler = func(o *options) slog.Handler {
+		return o.setHandler(HandlerDiscard, func(o *options) slog.Handler {
 			// the discard logger doesn't have any options
 			return &discard{}
-		}
-		return nil
+		})
 	}
 }
