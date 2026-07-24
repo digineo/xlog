@@ -6,7 +6,7 @@ replace github.com/digineo/xlog => ../
 
 require (
 	github.com/digineo/xlog v0.0.0
-	github.com/mattn/go-isatty v0.0.22
+	github.com/mattn/go-isatty v0.0.24
 	github.com/stretchr/testify v1.11.1
 	gitlab.com/greyxor/slogor v1.6.10
 )
