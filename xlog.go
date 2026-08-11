@@ -74,7 +74,7 @@ func New(opt ...Option) (Logger, error) {
 
 // log creates a log record. It is called by Debug, Info, etc.
 func (log *logger) log(level slog.Level, msg string, a ...slog.Attr) {
-	if !log.l.Enabled(context.Background(), level) {
+	if !log.Enabled(level) {
 		return
 	}
 	var pcs [1]uintptr
