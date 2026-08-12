@@ -104,7 +104,16 @@ log, err := xlog.New(
 ```
 
 `slogor.Colorized()` produces text output, so it implies `xlog.AsText()`
-and conflicts with `xlog.AsJSON()`. Install it with:
+and conflicts with `xlog.AsJSON()`.
+
+Colors are emitted only when the output is a terminal. Pass
+`slogor.ForceColor()` to colorize regardless:
+
+```go
+log, err := xlog.New(slogor.Colorized(slogor.ForceColor()))
+```
+
+Install it with:
 
 ```sh
 go get github.com/digineo/xlog/slogor

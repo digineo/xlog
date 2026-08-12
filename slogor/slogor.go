@@ -19,14 +19,34 @@ import (
 	"gitlab.com/greyxor/slogor"
 )
 
+// An Option configures the slogor-backed handler. Options are passed to
+// [Colorized]; they are distinct from [xlog.Option].
+type Option func(*settings)
+
+type settings struct {
+	forceColor bool
+}
+
+// ForceColor makes the handler emit colors even when the output is not a
+// terminal, e.g. when logs are piped into a tool which understands ANSI
+// escape sequences.
+func ForceColor() Option {
+	return func(s *settings) { s.forceColor = true }
+}
+
 // Colorized returns an [xlog.Option] that installs a slogor-backed text
 // handler. Colors are emitted only when the output (see [xlog.WriteTo])
-// is a terminal.
+// is a terminal, unless [ForceColor] is given.
 //
 // Because it produces text output, Colorized implies [xlog.AsText] and
 // therefore conflicts with [xlog.AsJSON]: passing both to [xlog.New]
 // makes New return an error.
-func Colorized() xlog.Option {
+func Colorized(opt ...Option) xlog.Option {
+	var s settings
+	for _, o := range opt {
+		o(&s)
+	}
+
 	return xlog.UseHandler(xlog.HandlerText, func(cfg *xlog.HandlerConfig) slog.Handler {
 		level := slog.LevelInfo
 		if cfg.Level != nil {
@@ -40,7 +60,8 @@ func Colorized() xlog.Option {
 		if cfg.Source {
 			opts = append(opts, slogor.ShowSource())
 		}
-		if f, isFile := cfg.Output.(*os.File); !isFile || !isatty.IsTerminal(f.Fd()) {
+		f, isFile := cfg.Output.(*os.File)
+		if !s.forceColor && (!isFile || !isatty.IsTerminal(f.Fd())) {
 			opts = append(opts, slogor.DisableColor())
 		}
 		return slogor.NewHandler(cfg.Output, opts...)

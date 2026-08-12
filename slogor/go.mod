@@ -1,14 +1,14 @@
 module github.com/digineo/xlog/slogor
 
-go 1.26
+go 1.26.0
 
 replace github.com/digineo/xlog => ../
 
 require (
-	github.com/digineo/xlog v0.0.0
-	github.com/mattn/go-isatty v0.0.22
+	github.com/digineo/xlog v1.1.0
+	github.com/mattn/go-isatty v0.0.24
 	github.com/stretchr/testify v1.11.1
-	gitlab.com/greyxor/slogor v1.6.10
+	gitlab.com/greyxor/slogor v1.7.0
 )
 
 require (

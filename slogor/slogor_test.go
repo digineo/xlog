@@ -29,6 +29,22 @@ func TestColorized(t *testing.T) {
 	assert.Contains(t, out, "who=world")
 }
 
+func TestForceColor(t *testing.T) {
+	newLogger := func(t *testing.T, opt ...slogor.Option) *bytes.Buffer {
+		t.Helper()
+
+		var buf bytes.Buffer
+		log, err := xlog.New(slogor.Colorized(opt...), xlog.WriteTo(&buf))
+		require.NoError(t, err)
+		log.Info("hello")
+		return &buf
+	}
+
+	// a bytes.Buffer is not a terminal
+	assert.NotContains(t, newLogger(t).String(), "\x1b[")
+	assert.Contains(t, newLogger(t, slogor.ForceColor()).String(), "\x1b[")
+}
+
 func TestColorized_impliesText(t *testing.T) {
 	// Colorized is a text handler, so combining it with AsText is
 	// redundant rather than a conflict.
