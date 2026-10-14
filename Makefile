@@ -1,8 +1,9 @@
 MAKEFLAGS += --no-print-directory
 
-# The repository hosts two Go modules: the root xlog module and the
-# optional xlog/slogor backend. Most targets iterate over both.
-MODULES = . slogor
+# The repository hosts three Go modules: the root xlog module and the
+# optional xlog/slogor and xlog/graylog backends. Most targets iterate
+# over all of them.
+MODULES = . slogor graylog
 
 ## help (prints target names with trailing "## comment")
 

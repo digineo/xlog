@@ -39,5 +39,12 @@ jobs:
           skip-cache: true
           working-directory: slogor
 
+      - name: Run linter (graylog module)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          skip-cache: true
+          working-directory: graylog
+
       - name: Run tests
         run: make test
