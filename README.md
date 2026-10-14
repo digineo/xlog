@@ -189,6 +189,24 @@ log.Info("hello", xlog.String("who", "world"))
 // buf now holds a line with a fixed timestamp
 ```
 
+## Releasing
+
+All modules share version numbers. Note changes in the `Unreleased`
+section of the [CHANGELOG](CHANGELOG.md), then run (with `go`, a
+logged-in `gh`, and Python 3.11+):
+
+```sh
+scripts/release.py all 1.2.0
+```
+
+This opens a pull request which moves the unreleased entries into a
+section for 1.2.0, and makes the sub-modules require xlog v1.2.0. Once
+the pull request is merged, the script tags `main` as `v1.2.0`,
+`slogor/v1.2.0` and `graylog/v1.2.0`, and pushes the tags.
+
+The two steps can also be run separately with `prepare` and `tag`, e.g.
+to merge the pull request later.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
