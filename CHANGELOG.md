@@ -10,6 +10,8 @@ tagged with their directory as prefix, e.g. `slogor/vX.Y.Z`.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-14
+
 ### Added
 
 - `Tee` option to send log records to additional handlers, `OnExit`
@@ -64,6 +66,7 @@ Initial release, extracted from [digineo/texd](https://github.com/digineo/texd).
 - slogor: optional sub-module with a colorized text backend,
   `slogor.Colorized()`.
 
-[Unreleased]: https://github.com/digineo/xlog/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/digineo/xlog/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/digineo/xlog/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/digineo/xlog/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/digineo/xlog/releases/tag/v1.0.0
