@@ -164,3 +164,24 @@ func (o *OptionSuite) TestAsText_withSource() {
 func (o *OptionSuite) TestDiscard() {
 	o.testBuildHandler("", Discard())
 }
+
+func (o *OptionSuite) TestTee_nil() {
+	err := Tee(nil)(&o.options)
+	o.Assert().EqualError(err, "xlog: nil handler factory")
+}
+
+func (o *OptionSuite) TestOnExit_nil() {
+	err := OnExit(nil)(&o.options)
+	o.Assert().EqualError(err, "xlog: nil exit function")
+}
+
+func (o *OptionSuite) TestOptions() {
+	err := Options(Leveled(slog.LevelWarn), WithSource())(&o.options)
+	o.Require().NoError(err)
+	o.Assert().Equal(slog.LevelWarn, o.level)
+	o.Assert().True(o.source)
+
+	err = Options(LeveledString("invalid"), Leveled(slog.LevelError))(&o.options)
+	o.Assert().EqualError(err, `unknown log level: "invalid"`)
+	o.Assert().Equal(slog.LevelWarn, o.level, "options after a failing one must not be applied")
+}

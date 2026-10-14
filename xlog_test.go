@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -333,4 +334,43 @@ func TestLogger_noAttributes(t *testing.T) {
 	// Should not have any extra attributes beyond the message
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	assert.Equal(t, 1, len(lines), "should be a single line")
+}
+
+func TestLogger_Tee(t *testing.T) {
+	var local, remote bytes.Buffer
+	log, err := New(
+		AsText(),
+		WriteTo(&local),
+		Leveled(slog.LevelWarn),
+		MockClock(time.Unix(1650000000, 0).UTC()),
+		Tee(func(cfg *HandlerConfig) slog.Handler {
+			return slog.NewJSONHandler(&remote, &slog.HandlerOptions{Level: cfg.Level})
+		}),
+	)
+	require.NoError(t, err)
+
+	log.Info("filtered")
+	log.With(String("k", "v")).Warn("teed")
+
+	assert.Equal(t, "time=2022-04-15T05:20:00.000Z level=WARN msg=teed k=v\n", local.String())
+	assert.Equal(t, `{"time":"2022-04-15T05:20:00Z","level":"WARN","msg":"teed","k":"v"}`+"\n", remote.String())
+}
+
+func TestLogger_Fatal(t *testing.T) {
+	var code int
+	exit = func(c int) { code = c }
+	t.Cleanup(func() { exit = os.Exit })
+
+	var calls []string
+	log, err := New(
+		AsText(),
+		WriteTo(&bytes.Buffer{}),
+		OnExit(func() { calls = append(calls, "first") }),
+		OnExit(func() { calls = append(calls, "second") }),
+	)
+	require.NoError(t, err)
+
+	log.With(String("k", "v")).Fatal("bye")
+	assert.Equal(t, []string{"first", "second"}, calls)
+	assert.Equal(t, 1, code)
 }

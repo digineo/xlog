@@ -33,8 +33,12 @@ type Logger interface {
 }
 
 type logger struct {
-	l *slog.Logger
+	l      *slog.Logger
+	onExit []func()
 }
+
+// exit is replaced in tests.
+var exit = os.Exit
 
 // New creates a new logger instance. By default, log messages are
 // written to stdout, and the log level is INFO.
@@ -62,6 +66,14 @@ func New(opt ...Option) (Logger, error) {
 		return d, nil
 	}
 
+	if len(opts.tees) > 0 {
+		hs := []slog.Handler{h}
+		for _, factory := range opts.tees {
+			hs = append(hs, factory(opts.handlerConfig()))
+		}
+		h = slog.NewMultiHandler(hs...)
+	}
+
 	if opts.clock != nil {
 		h = &mockTimeHandler{
 			clock:   opts.clock,
@@ -69,7 +81,7 @@ func New(opt ...Option) (Logger, error) {
 		}
 	}
 
-	return &logger{l: slog.New(h)}, nil
+	return &logger{l: slog.New(h), onExit: opts.onExit}, nil
 }
 
 // log creates a log record. It is called by Debug, Info, etc.
@@ -100,15 +112,20 @@ func (log *logger) Error(msg string, a ...slog.Attr) {
 	log.log(slog.LevelError, msg, a...)
 }
 
-// Fatal is the same as Error, but quits the program via os.Exit(1).
+// Fatal is the same as Error, but runs the functions registered with
+// OnExit and then quits the program via os.Exit(1).
 func (log *logger) Fatal(msg string, a ...slog.Attr) {
 	log.log(slog.LevelError, msg, a...)
-	os.Exit(1)
+	for _, fn := range log.onExit {
+		fn()
+	}
+	exit(1)
 }
 
 func (log *logger) With(a ...slog.Attr) Logger {
 	return &logger{
-		l: slog.New(log.l.Handler().WithAttrs(a)),
+		l:      slog.New(log.l.Handler().WithAttrs(a)),
+		onExit: log.onExit,
 	}
 }
 
