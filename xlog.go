@@ -140,3 +140,11 @@ func (h *mockTimeHandler) Handle(ctx context.Context, a slog.Record) error {
 	a.Time = h.clock.Now()
 	return h.Handler.Handle(ctx, a)
 }
+
+func (h *mockTimeHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &mockTimeHandler{clock: h.clock, Handler: h.Handler.WithAttrs(attrs)}
+}
+
+func (h *mockTimeHandler) WithGroup(name string) slog.Handler {
+	return &mockTimeHandler{clock: h.clock, Handler: h.Handler.WithGroup(name)}
+}
