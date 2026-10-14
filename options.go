@@ -22,6 +22,16 @@ type options struct {
 
 	handlerKind  HandlerKind
 	buildHandler func(o *options) slog.Handler
+	tees         []HandlerFactory
+	onExit       []func()
+}
+
+func (o *options) handlerConfig() *HandlerConfig {
+	return &HandlerConfig{
+		Output: o.output,
+		Level:  o.level,
+		Source: o.source,
+	}
 }
 
 // HandlerKind classifies the output format a handler produces. It is
@@ -91,12 +101,53 @@ func UseHandler(kind HandlerKind, factory HandlerFactory) Option {
 			return errors.New("xlog: nil handler factory")
 		}
 		return o.setHandler(kind, func(o *options) slog.Handler {
-			return factory(&HandlerConfig{
-				Output: o.output,
-				Level:  o.level,
-				Source: o.source,
-			})
+			return factory(o.handlerConfig())
 		})
+	}
+}
+
+// Tee sends each log record additionally to a handler produced by
+// factory, e.g. to ship logs to a remote collector while still writing
+// them locally. It may be given multiple times. Tee does not select an
+// output format, so a handler option (such as [AsText]) is still needed.
+//
+// The handler receives the same [HandlerConfig] as the primary handler;
+// its Output field refers to the local output and can be ignored.
+func Tee(factory HandlerFactory) Option {
+	return func(o *options) error {
+		if factory == nil {
+			return errors.New("xlog: nil handler factory")
+		}
+		o.tees = append(o.tees, factory)
+		return nil
+	}
+}
+
+// OnExit registers fn to run before [Logger.Fatal] exits the program,
+// e.g. to flush buffered log records. Functions run in the order they
+// were registered. Loggers derived via [Logger.With] inherit them. They
+// are ignored by the muted logger (see [Discard]).
+func OnExit(fn func()) Option {
+	return func(o *options) error {
+		if fn == nil {
+			return errors.New("xlog: nil exit function")
+		}
+		o.onExit = append(o.onExit, fn)
+		return nil
+	}
+}
+
+// Options combines multiple options into one. It allows handler
+// provider packages to offer a single option which configures several
+// aspects (e.g. [Tee] and [OnExit]).
+func Options(opt ...Option) Option {
+	return func(o *options) error {
+		for _, fn := range opt {
+			if err := fn(o); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 }
 

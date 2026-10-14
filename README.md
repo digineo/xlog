@@ -77,6 +77,9 @@ func main() {
 | `Discard()`           | Mute the logger entirely.                                    |
 | `MockClock(t)`        | Use a fixed timestamp — handy in tests.                      |
 | `UseHandler(kind, f)` | Install a custom `slog.Handler` backend (see below).         |
+| `Tee(f)`              | Send each record additionally to the handler built by `f`.   |
+| `OnExit(fn)`          | Run `fn` before `Fatal` exits the program.                   |
+| `Options(opt...)`     | Combine several options into one.                            |
 
 Exactly one handler option (`AsText()`, `AsJSON()`, `Discard()`, or a
 custom `UseHandler`) selects the output format; `New` returns an error if

@@ -10,6 +10,12 @@ sub-module are tagged `slogor/vX.Y.Z`.
 
 ## [Unreleased]
 
+### Added
+
+- `Tee` option to send log records to additional handlers, `OnExit`
+  option to run functions before `Fatal` exits the program, and
+  `Options` to combine several options into one.
+
 ### Changed
 
 - slogor: require `golang.org/x/sys` v0.49.0.
