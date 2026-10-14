@@ -5,7 +5,7 @@ go 1.26.0
 replace github.com/digineo/xlog => ../
 
 require (
-	github.com/digineo/xlog v1.1.0
+	github.com/digineo/xlog v1.2.0
 	github.com/stretchr/testify v1.12.1
 )
 
