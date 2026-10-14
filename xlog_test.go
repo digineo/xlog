@@ -153,10 +153,28 @@ func TestLogger_With(t *testing.T) {
 	child.Info("message from child")
 
 	output := buf.String()
+	assert.Contains(t, output, "time=2022-04-15T05:20:00.000Z")
 	assert.Contains(t, output, "INFO")
 	assert.Contains(t, output, "message from child")
 	assert.Contains(t, output, "component=test")
 	assert.Contains(t, output, "pid=123")
+}
+
+func TestMockTimeHandler_WithGroup(t *testing.T) {
+	var buf bytes.Buffer
+	log, err := New(
+		AsText(),
+		WriteTo(&buf),
+		MockClock(time.Unix(1650000000, 0).UTC()),
+	)
+	require.NoError(t, err)
+
+	h := log.(*logger).l.Handler().WithGroup("g")
+	slog.New(h).Info("grouped", "k", "v")
+
+	output := buf.String()
+	assert.Contains(t, output, "time=2022-04-15T05:20:00.000Z")
+	assert.Contains(t, output, "g.k=v")
 }
 
 func TestLogger_With_multipleAttrs(t *testing.T) {

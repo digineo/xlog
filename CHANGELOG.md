@@ -14,6 +14,11 @@ sub-module are tagged `slogor/vX.Y.Z`.
 
 - slogor: require `golang.org/x/sys` v0.49.0.
 
+### Fixed
+
+- `MockClock` is no longer lost on loggers derived via `Logger.With()`
+  ([#9](https://github.com/digineo/xlog/issues/9)).
+
 ## [1.1.0] - 2026-08-11
 
 ### Added
