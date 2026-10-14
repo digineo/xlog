@@ -23,6 +23,8 @@ into its own module for reuse.
 - A pluggable handler backend (`UseHandler`): opt into a richer handler
   without the core module depending on it. A colorized text backend is
   shipped as the optional [`xlog/slogor`](./slogor) sub-module.
+- Fan-out to additional handlers (`Tee`), e.g. to ship logs to Graylog
+  with the optional [`xlog/graylog`](./graylog) sub-module.
 - Convenience attribute constructors (`String`, `Int`, `Error`, …) so you
   don't need to import `log/slog` alongside `xlog`.
 - Test helpers: a no-op `Discard` logger and a `MockClock` option for
@@ -127,6 +129,49 @@ the slogor or go-isatty dependencies. The same `UseHandler` extension point
 lets you wire up any other `slog.Handler` backend.
 
 [slogor]: https://gitlab.com/greyxor/slogor
+
+### Forwarding to Graylog (`xlog/graylog`)
+
+The optional `xlog/graylog` sub-module sends log records to a Graylog
+[GELF][gelf] input, in addition to the regular output. It only uses the
+standard library. Install it with:
+
+```sh
+go get github.com/digineo/xlog/graylog
+```
+
+```go
+import (
+	"log/slog"
+
+	"github.com/digineo/xlog"
+	"github.com/digineo/xlog/graylog"
+)
+
+gl, err := graylog.New("tls://graylog.example.com:12201")
+if err != nil {
+	panic(err)
+}
+defer gl.Close()
+
+log, err := xlog.New(
+	xlog.AsJSON(),
+	gl.Forward(slog.String("component", "myapp")),
+)
+```
+
+- Addresses use the schemes `udp://`, `tcp://` or `tls://`. UDP and TCP
+  are not encrypted, so only use them within a trusted network.
+- The attributes passed to `Forward` are added to messages sent to
+  Graylog only.
+- Messages are queued and sent in the background, so log calls never
+  block on the network. When the queue is full or sending fails,
+  messages are dropped; `gl.Dropped()` reports how many.
+- `gl.Close()` flushes the queue (waiting at most 5s, see
+  `graylog.FlushTimeout`). `Fatal` does this automatically before it
+  exits the program.
+
+[gelf]: https://go2docs.graylog.org/current/getting_in_log_data/gelf.html
 
 ### Testing
 
